@@ -51,7 +51,8 @@ def get_db():
 def init_db():
     from models import Base
     Base.metadata.create_all(bind=engine)
-    _ensure_missing_columns()
+    if os.getenv("ENV") != "production":
+        _ensure_missing_columns()
 
 
 def _ensure_missing_columns():
