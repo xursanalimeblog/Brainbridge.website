@@ -45,6 +45,9 @@ def parse_input(raw: str) -> List[tuple]:
         line = line.strip()
         if not line:
             continue
+        # Support various Unicode dashes/hyphens (em dash, en dash, minus sign, etc.)
+        for dash in ["—", "–", "−", "‒", "―"]:
+            line = line.replace(dash, "-")
         # Support both "word - translation" and "word-translation"
         if " - " in line:
             parts = line.split(" - ", 1)

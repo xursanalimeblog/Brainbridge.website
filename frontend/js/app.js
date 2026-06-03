@@ -914,6 +914,8 @@ function addTab(t){
 
 function parseLine(l){
   l=l.trim();if(!l)return null;
+  // Normalize various Unicode dashes (em dash, en dash, minus sign, figure dash, horizontal bar) to standard hyphen
+  l=l.replace(/[\u2014\u2013\u2212\u2012\u2015]/g, '-');
   if(l.includes(' - ')){const[a,...b]=l.split(' - ');return{word:a.trim(),translation:b.join(' - ').trim()};}
   if(l.includes('-')){const i=l.indexOf('-');return{word:l.slice(0,i).trim(),translation:l.slice(i+1).trim()};}
   return null;
