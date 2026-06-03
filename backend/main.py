@@ -24,8 +24,7 @@ load_dotenv()
 sys.path.insert(0, os.path.dirname(__file__))
 
 # ── Logging konfiguratsiyasi ─────────────────────────────────────────────────
-LOG_DIR = os.path.join(os.path.dirname(__file__), "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
+IS_VERCEL = "VERCEL" in os.environ
 
 LOGGING_CONFIG = {
     "version": 1,
@@ -45,24 +44,32 @@ LOGGING_CONFIG = {
             "formatter": "standard",
             "stream": "ext://sys.stdout",
         },
-        "file": {
-            "class": "logging.handlers.RotatingFileHandler",
-            "formatter": "detailed",
-            "filename": os.path.join(LOG_DIR, "app.log"),
-            "maxBytes": 10 * 1024 * 1024,  # 10MB
-            "backupCount": 5,
-            "encoding": "utf-8",
-        },
     },
     "root": {
         "level": "INFO",
-        "handlers": ["console", "file"],
+        "handlers": ["console"],
     },
     "loggers": {
         "brainbridge": {"level": "DEBUG", "propagate": True},
         "uvicorn.access": {"level": "WARNING"},
     },
 }
+
+if not IS_VERCEL:
+    try:
+        LOG_DIR = os.path.join(os.path.dirname(__file__), "logs")
+        os.makedirs(LOG_DIR, exist_ok=True)
+        LOGGING_CONFIG["handlers"]["file"] = {
+            "class": "logging.handlers.RotatingFileHandler",
+            "formatter": "detailed",
+            "filename": os.path.join(LOG_DIR, "app.log"),
+            "maxBytes": 10 * 1024 * 1024,  # 10MB
+            "backupCount": 5,
+            "encoding": "utf-8",
+        }
+        LOGGING_CONFIG["root"]["handlers"].append("file")
+    except Exception:
+        pass
 
 logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger("brainbridge.main")
@@ -230,9 +237,16 @@ def health():
 frontend = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
 uploads_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
 avatars_dir = os.path.join(uploads_dir, "avatars")
-os.makedirs(avatars_dir, exist_ok=True)
+try:
+    os.makedirs(avatars_dir, exist_ok=True)
+except Exception as e:
+    logger.warning("Could not create avatars directory: %s", e)
 
-app.mount("/api/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+# Mount uploads only if directory exists, or log warning
+if os.path.isdir(uploads_dir):
+    app.mount("/api/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+else:
+    logger.warning("Uploads directory not found: %s", uploads_dir)
 
 _NO_CACHE = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
 
